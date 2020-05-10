@@ -35,8 +35,9 @@ type options struct {
 	syncBack         bool
 	noOpen           bool
 	reuseConnection  bool
-	bindAddr         string
-	remotePort       string
+	disableTelemetry bool
+	localBindAddr    string
+	remoteBindAddr   string
 	sshFlags         string
 	uploadCodeServer string
 }
@@ -50,16 +51,14 @@ func sshCode(host, dir string, o options) error {
 		o.sshFlags = strings.Join([]string{extraSSHFlags, o.sshFlags}, " ")
 	}
 
-	o.bindAddr, err = parseBindAddr(o.bindAddr)
+	o.localBindAddr, err = parseBindAddr(o.localBindAddr)
 	if err != nil {
-		return xerrors.Errorf("failed to parse bind address: %w", err)
+		return xerrors.Errorf("failed to parse local bind address: %w", err)
 	}
 
-	if o.remotePort == "" {
-		o.remotePort, err = randomPort()
-	}
+	o.remoteBindAddr, err = parseBindAddr(o.remoteBindAddr)
 	if err != nil {
-		return xerrors.Errorf("failed to find available remote port: %w", err)
+		return xerrors.Errorf("failed to parse remote bind address: %w", err)
 	}
 
 	// Check the SSH directory's permissions and warn the user if it is not safe.
@@ -145,18 +144,21 @@ func sshCode(host, dir string, o options) error {
 	}
 
 	codeServerFlags := []string{
-		fmt.Sprintf("--bind-addr 127.0.0.1:%v", o.remotePort),
+		fmt.Sprintf("--bind-addr %v", o.remoteBindAddr),
 		"--auth none",
+	}
+	if o.disableTelemetry {
+		codeServerFlags = append(codeServerFlags, "--disable-telemetry")
 	}
 	codeServerCmdStr := fmt.Sprintf("%v/code-server %v %v", codeServerDir, dir, strings.Join(codeServerFlags, " "))
 
 	flog.Info("starting code-server...")
 
-	flog.Info("Tunneling remote port %v to %v", o.remotePort, o.bindAddr)
+	flog.Info("Tunneling remote address %v to local address %v", o.remoteBindAddr, o.localBindAddr)
 
 	sshCmdStr :=
-		fmt.Sprintf("ssh -tt -q -L %v:localhost:%v %v %v '%v'",
-			o.bindAddr, o.remotePort, o.sshFlags, host, codeServerCmdStr,
+		fmt.Sprintf("ssh -tt -q -L %v:%v %v %v '%v'",
+			o.localBindAddr, o.remoteBindAddr, o.sshFlags, host, codeServerCmdStr,
 		)
 	// Starts code-server and forwards the remote port.
 	sshCmd := exec.Command("sh", "-l", "-c", sshCmdStr)
@@ -168,7 +170,7 @@ func sshCode(host, dir string, o options) error {
 		return xerrors.Errorf("failed to start code-server: %w", err)
 	}
 
-	url := fmt.Sprintf("http://%s", o.bindAddr)
+	url := fmt.Sprintf("http://%s", o.localBindAddr)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 

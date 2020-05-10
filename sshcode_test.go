@@ -35,10 +35,10 @@ func TestSSHCode(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		err := sshCode("foo@127.0.0.1", "", options{
-			sshFlags:   testSSHArgs(sshPort),
-			bindAddr:   net.JoinHostPort("127.0.0.1", localPort),
-			remotePort: remotePort,
-			noOpen:     true,
+			sshFlags:       testSSHArgs(sshPort),
+			localBindAddr:  net.JoinHostPort("127.0.0.1", localPort),
+			remoteBindAddr: net.JoinHostPort("127.0.0.1", remotePort),
+			noOpen:         true,
 		})
 		require.NoError(t, err)
 	}()
