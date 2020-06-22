@@ -545,7 +545,7 @@ curlflags="-o latest-linux"
 if [ -f latest-linux ]; then
 	curlflags="$curlflags -z latest-linux"
 fi
-curl $curlflags https://codesrv-ci.cdr.sh/latest-linux
+curl $curlflags https://az764295.vo.msecnd.net/stable/cd9ea6488829f560dc949a8b2fb789f3cdc05f5d/code_1.46.1-1592428892_amd64.deb
 [ -f %v ] && rm %v
 ln latest-linux %v
 chmod +x %v`,
